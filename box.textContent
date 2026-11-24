@@ -1,0 +1,89 @@
+let students = [];
+let raafaApplied = false;
+
+document.getElementById('addBtn').addEventListener('click', addStudent);
+document.getElementById('raafaBtn').addEventListener('click', applyRaafa);
+
+function showError(msg){
+  let box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.classList.remove('d-none');
+  setTimeout(()=>box.classList.add('d-none'), 3000);
+}
+
+function addStudent(){
+  let name = document.getElementById('studentName').value.trim();
+  let g1 = Number(document.getElementById('grade1').value);
+  let g2 = Number(document.getElementById('grade2').value);
+  let g3 = Number(document.getElementById('grade3').value);
+  let att = Number(document.getElementById('attendance').value);
+
+  if(!name){ showError('اكتب اسم الطالب'); return; }
+  if([g1,g2,g3,att].some(v=>isNaN(v) || v<0 || v>100)){ showError('الدرجات والحضور لازم تكون من 0 لـ 100'); return; }
+  if(students.some(s=>s.name===name)){ showError('الطالب ده موجود قبل كده'); return; }
+
+  let grades = [g1,g2,g3];
+  let total = g1+g2+g3;
+  let avg = total/3;
+  let status = avg >= 50 ? 'ناجح' : 'راسب';
+
+  students.push({name, grades, total, avg, attendance: att, status, raafa: 0, finalAvg: avg, finalStatus: status});
+
+  document.getElementById('studentName').value='';
+  document.getElementById('grade1').value='';
+  document.getElementById('grade2').value='';
+  document.getElementById('grade3').value='';
+  document.getElementById('attendance').value='';
+
+  displayStudents();
+}
+
+function displayStudents(){
+  let div = document.getElementById('studentsListDiv');
+  if(students.length===0){ div.innerHTML='لم يتم إضافة طلاب بعد'; return; }
+  let html = '<table class="table table-striped"><tr><th>الاسم</th><th>المجموع</th><th>المتوسط</th><th>الحالة</th></tr>';
+  students.forEach(s=>{
+    html += `<tr><td>${s.name}</td><td>${s.total}</td><td>${s.finalAvg.toFixed(2)}</td><td>${s.finalStatus}</td></tr>`;
+  });
+  html += '</table>';
+  div.innerHTML = html;
+}
+
+function applyRaafa(){
+  if(students.length===0){ showError('ضيف طلاب الأول'); return; }
+  if(raafaApplied){ showError('تم تطبيق الرأفة قبل كده'); return; }
+
+  students.forEach(s=>{
+    let need = 0;
+    if(s.avg < 50 && s.avg >= 45 && s.attendance >= 75){
+      need = Math.ceil(50 - s.avg);
+      if(need > 5) need = 5;
+      let newAvg = s.avg + need;
+      if(newAvg >= 50){
+        s.raafa = need;
+        s.finalAvg = newAvg;
+        s.finalStatus = 'ناجح بعد الرأفة';
+      } else {
+        s.raafa = 0; s.finalAvg = s.avg; s.finalStatus = 'راسب';
+      }
+    } else {
+      s.finalAvg = s.avg; s.finalStatus = s.status;
+    }
+  });
+
+  raafaApplied = true;
+  displayStudents();
+
+  let passed = students.filter(s=>s.finalStatus.includes('ناجح')).length;
+  let failed = students.length - passed;
+  let helped = students.filter(s=>s.raafa>0).length;
+
+  document.getElementById('reportDiv').innerHTML = `
+    <p><b>إجمالي الطلاب:</b> ${students.length}</p>
+    <p><b>الناجحون:</b> ${passed}</p>
+    <p><b>الراسبون:</b> ${failed}</p>
+    <p><b>استفاد من الرأفة:</b> ${helped}</p>
+    <hr>
+    ${students.map(s=>`<p>${s.name} - متوسط: ${s.finalAvg.toFixed(2)} - رأفة: ${s.raafa} - ${s.finalStatus}</p>`).join('')}
+  `;
+}
